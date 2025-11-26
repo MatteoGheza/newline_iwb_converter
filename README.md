@@ -1,5 +1,8 @@
 # Newline IWB Converter
 
+![PyPI - Version](https://img.shields.io/pypi/v/newline-iwb-converter) ![GitHub License](https://img.shields.io/github/license/matteogheza/newline_iwb_converter)
+
+
 A converter utility for extracting SVG pages from Newline whiteboard IWB files, with optional PDF conversion.
 
 ## Features
@@ -18,6 +21,7 @@ A converter utility for extracting SVG pages from Newline whiteboard IWB files, 
 ### Prerequisites
 
 - Python 3.10 or later
+- **Ubuntu**: Install Cairo with `sudo apt install -y libcairo2-dev pkg-config python3-dev`
 
 ### Installation
 

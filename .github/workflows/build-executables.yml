@@ -1,0 +1,46 @@
+name: Build Executables
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      
+      - name: Build executables
+        run: python scripts/build_exec.py all
+      
+      - name: Determine artifact name
+        id: artifact
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            echo "name=newline-iwb-converter-windows" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" == "Linux" ]; then
+            echo "name=newline-iwb-converter-linux" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "name=newline-iwb-converter-macos" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: dist/
+          retention-days: 30

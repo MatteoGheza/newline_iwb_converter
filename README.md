@@ -18,18 +18,11 @@ A converter utility for extracting SVG pages from Newline whiteboard IWB files, 
 ### Prerequisites
 
 - Python 3.10 or later
-- [UV](https://github.com/astral-sh/uv) package manager
 
 ### Installation
 
 ```bash
-uv sync
-```
-
-### Activate Virtual Environment
-
-```bash
-.venv\Scripts\Activate.ps1
+pip install newline-iwb-converter
 ```
 
 ## Usage
@@ -155,6 +148,16 @@ uv run iwb2pdf input.iwb -o output.pdf
 ```
 
 ## Development
+
+### Getting Started
+
+First, clone the repository and set up your development environment:
+
+```bash
+# Install UV package manager (https://github.com/astral-sh/uv)
+# Then sync dependencies:
+uv sync
+```
 
 ### Add Dependencies
 

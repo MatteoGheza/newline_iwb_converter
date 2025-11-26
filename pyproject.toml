@@ -4,9 +4,25 @@ version = "0.1.1"
 description = "A converter utility for handling Newline whiteboard IWB files and converting them"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "GPL-3.0-only"}
+license = "GPL-3.0-only"
 authors = [
   {name = "Matteo Gheza", email = "me@matteogheza.it"}
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+
+  "Intended Audience :: Education",
+  "Intended Audience :: End Users/Desktop",
+
+  "Topic :: Education",
+  "Topic :: File Formats",
+
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
     "reportlab>=4.0",

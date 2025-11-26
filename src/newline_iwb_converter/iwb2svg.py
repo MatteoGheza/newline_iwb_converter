@@ -72,6 +72,18 @@ def remove_fills(svg_root):
             elem.set("fill", "none")
 
 
+def delete_background_images(svg_root):
+    """Remove image elements with id starting with 'backgroundImage'."""
+    for img_elem in svg_root.findall(".//svg:image", {"svg": SVG_NS}):
+        elem_id = img_elem.get("id")
+        if elem_id and elem_id.startswith("backgroundImage"):
+            # Find parent and remove the image element
+            for parent in svg_root.iter():
+                if img_elem in list(parent):
+                    parent.remove(img_elem)
+                    break
+
+
 def process_images_data_uri(svg_root, zip_file):
     """Convert image xlink:href to data URIs from the zip file."""
     for img_elem in svg_root.findall(".//svg:image", {"svg": SVG_NS}):
@@ -110,7 +122,7 @@ def process_images_copy_directory(svg_root, zip_file, output_dir):
                     target.write(source.read())
 
 
-def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_uri"):
+def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_uri", delete_background=False):
     """
     Extract SVG pages from an IWB file.
     
@@ -119,6 +131,7 @@ def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_u
         output_dir: Output directory for SVG files
         fix_fills: Whether to remove fills from shapes
         images_mode: How to handle images - "nothing", "copy_directory", or "data_uri"
+        delete_background: Whether to remove background image elements
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -167,6 +180,10 @@ def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_u
             # For "nothing" mode, leave href as-is
             # For "copy_directory" mode, leave href as-is (already copied)
 
+            # ---- DELETE BACKGROUND IMAGES ----
+            if delete_background:
+                delete_background_images(svg_root)
+
             # ---- APPLY FIX OPTION ----
             if fix_fills:
                 remove_fills(svg_root)
@@ -207,11 +224,22 @@ def main():
         help="How to handle images: nothing (keep xlink:href), copy_directory (copy images/ to output), data_uri (embed as base64, default)",
     )
 
-    parser.set_defaults(fix_fills=True)
+    parser.add_argument(
+        "--delete-background",
+        dest="delete_background",
+        action="store_true",
+        help="Remove background image elements (id starting with 'backgroundImage')",
+    )
+
+    parser.set_defaults(fix_fills=True, delete_background=False)
     args = parser.parse_args()
 
     extract_iwb_to_svg(
-        args.iwb_file, args.output, fix_fills=args.fix_fills, images_mode=args.images_mode
+        args.iwb_file,
+        args.output,
+        fix_fills=args.fix_fills,
+        images_mode=args.images_mode,
+        delete_background=args.delete_background,
     )
 
 

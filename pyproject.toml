@@ -18,4 +18,4 @@ build-backend = "setuptools.build_meta"
 package = true
 
 [dependency-groups]
-dev = []
+dev = ["pyinstaller>=6.0"]

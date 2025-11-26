@@ -99,6 +99,28 @@ uv run iwb2svg input.iwb -o output_dir
 uv add <package-name>
 ```
 
+### Install Dev Dependencies
+
+```bash
+uv sync --group dev
+```
+
+### Package with PyInstaller
+
+To create a standalone executable of the `iwb2svg` utility:
+
+```bash
+# Install dev dependencies (if not already installed)
+uv sync --group dev
+
+# Build standalone executable using the spec file
+uv run pyinstaller iwb2svg.spec
+```
+
+The executable will be created in the `dist/` folder as `iwb2svg.exe` (Windows) or `iwb2svg` (Linux/macOS).
+
+To customize the build, edit `iwb2svg.spec` before running PyInstaller.
+
 ### Run Tests
 
 ```bash

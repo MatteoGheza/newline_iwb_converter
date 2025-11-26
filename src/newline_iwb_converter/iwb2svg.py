@@ -8,6 +8,7 @@ import sys
 import argparse
 import xml.etree.ElementTree as ET
 import base64
+import re
 from pathlib import Path
 
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -72,6 +73,128 @@ def remove_fills(svg_root):
             elem.set("fill", "none")
 
 
+def fix_svg_size(svg_root, margin=100):
+    """
+    Fix SVG size if width or height are smaller than the actual content.
+    Calculate bounding box of all elements and expand SVG if needed.
+    
+    Args:
+        svg_root: The SVG root element
+        margin: Safety margin to add around content (default: 10)
+    """
+    try:
+        # Get current SVG dimensions
+        width_str = svg_root.get("width", "100%")
+        height_str = svg_root.get("height", "100%")
+        
+        # Parse numeric values (ignore percentages)
+        width = float(width_str) if width_str and width_str.replace(".", "").isdigit() else None
+        height = float(height_str) if height_str and height_str.replace(".", "").isdigit() else None
+        
+        if width is None or height is None:
+            return  # Can't fix if dimensions are percentages or invalid
+        
+        # Find bounding box of all elements with position/size attributes
+        max_x = 0.0
+        max_y = 0.0
+        
+        for elem in svg_root.iter():
+            tag = elem.tag
+            if not isinstance(tag, str):
+                continue
+            local = tag.split("}")[-1]
+            
+            # For rect elements
+            if local == "rect":
+                try:
+                    x = float(elem.get("x", 0))
+                    y = float(elem.get("y", 0))
+                    w = float(elem.get("width", 0))
+                    h = float(elem.get("height", 0))
+                    max_x = max(max_x, x + w)
+                    max_y = max(max_y, y + h)
+                except (ValueError, TypeError):
+                    pass
+            
+            # For circle elements
+            elif local == "circle":
+                try:
+                    cx = float(elem.get("cx", 0))
+                    cy = float(elem.get("cy", 0))
+                    r = float(elem.get("r", 0))
+                    max_x = max(max_x, cx + r)
+                    max_y = max(max_y, cy + r)
+                except (ValueError, TypeError):
+                    pass
+            
+            # For ellipse elements
+            elif local == "ellipse":
+                try:
+                    cx = float(elem.get("cx", 0))
+                    cy = float(elem.get("cy", 0))
+                    rx = float(elem.get("rx", 0))
+                    ry = float(elem.get("ry", 0))
+                    max_x = max(max_x, cx + rx)
+                    max_y = max(max_y, cy + ry)
+                except (ValueError, TypeError):
+                    pass
+            
+            # For polyline and polygon - parse points attribute
+            elif local in ("polyline", "polygon"):
+                try:
+                    points_str = elem.get("points", "")
+                    if points_str:
+                        # Points format: "x1,y1 x2,y2 x3,y3 ..."
+                        points = points_str.replace(",", " ").split()
+                        for i in range(0, len(points), 2):
+                            if i + 1 < len(points):
+                                x = float(points[i])
+                                y = float(points[i + 1])
+                                max_x = max(max_x, x)
+                                max_y = max(max_y, y)
+                except (ValueError, TypeError, IndexError):
+                    pass
+            
+            # For image elements
+            elif local == "image":
+                try:
+                    x = float(elem.get("x", 0))
+                    y = float(elem.get("y", 0))
+                    w = float(elem.get("width", 0))
+                    h = float(elem.get("height", 0))
+                    max_x = max(max_x, x + w)
+                    max_y = max(max_y, y + h)
+                except (ValueError, TypeError):
+                    pass
+            
+            # For path elements - extract coordinates from d attribute (basic parsing)
+            elif local == "path":
+                try:
+                    d_str = elem.get("d", "")
+                    if d_str:
+                        # Simple extraction of all numbers from path data
+                        numbers = re.findall(r"-?\d+\.?\d*", d_str)
+                        for i in range(0, len(numbers), 2):
+                            if i + 1 < len(numbers):
+                                x = float(numbers[i])
+                                y = float(numbers[i + 1])
+                                max_x = max(max_x, x)
+                                max_y = max(max_y, y)
+                except (ValueError, TypeError, IndexError):
+                    pass
+        
+        # If content extends beyond current size, expand SVG with safety margin
+        if max_x > width or max_y > height:
+            new_width = max(width, max_x + margin)
+            new_height = max(height, max_y + margin)
+            svg_root.set("width", str(new_width))
+            svg_root.set("height", str(new_height))
+            print(f"Fixed SVG size: {width}x{height} → {new_width}x{new_height} (margin: {margin})")
+    
+    except Exception as e:
+        print(f"Warning: Could not fix SVG size: {e}", file=sys.stderr)
+
+
 def delete_background_images(svg_root):
     """Remove image elements with id starting with 'backgroundImage'."""
     for img_elem in svg_root.findall(".//svg:image", {"svg": SVG_NS}):
@@ -122,7 +245,7 @@ def process_images_copy_directory(svg_root, zip_file, output_dir):
                     target.write(source.read())
 
 
-def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_uri", delete_background=False):
+def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, fix_size=True, images_mode="data_uri", delete_background=False):
     """
     Extract SVG pages from an IWB file.
     
@@ -130,6 +253,7 @@ def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_u
         iwb_path: Path to input .iwb file
         output_dir: Output directory for SVG files
         fix_fills: Whether to remove fills from shapes
+        fix_size: Whether to fix SVG size if content extends beyond dimensions
         images_mode: How to handle images - "nothing", "copy_directory", or "data_uri"
         delete_background: Whether to remove background image elements
     """
@@ -184,9 +308,12 @@ def extract_iwb_to_svg(iwb_path, output_dir, fix_fills=True, images_mode="data_u
             if delete_background:
                 delete_background_images(svg_root)
 
-            # ---- APPLY FIX OPTION ----
+            # ---- APPLY FIX OPTIONS ----
             if fix_fills:
                 remove_fills(svg_root)
+            
+            if fix_size:
+                fix_svg_size(svg_root)
 
             out_path = os.path.join(output_dir, f"page_{idx}.svg")
             ET.ElementTree(svg_root).write(
@@ -216,6 +343,20 @@ def main():
         help="Do NOT modify fill behavior",
     )
 
+    size_group = parser.add_mutually_exclusive_group()
+    size_group.add_argument(
+        "--fix-size",
+        dest="fix_size",
+        action="store_true",
+        help="Fix SVG size if content extends beyond dimensions (default)",
+    )
+    size_group.add_argument(
+        "--no-fix-size",
+        dest="fix_size",
+        action="store_false",
+        help="Do NOT fix SVG size",
+    )
+
     parser.add_argument(
         "--images",
         dest="images_mode",
@@ -231,13 +372,14 @@ def main():
         help="Remove background image elements (id starting with 'backgroundImage')",
     )
 
-    parser.set_defaults(fix_fills=True, delete_background=False)
+    parser.set_defaults(fix_fills=True, fix_size=True, delete_background=False)
     args = parser.parse_args()
 
     extract_iwb_to_svg(
         args.iwb_file,
         args.output,
         fix_fills=args.fix_fills,
+        fix_size=args.fix_size,
         images_mode=args.images_mode,
         delete_background=args.delete_background,
     )

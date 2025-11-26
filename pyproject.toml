@@ -1,0 +1,21 @@
+[project]
+name = "newline-iwb-converter"
+version = "0.1.0"
+description = "A converter utility for handling Newline whiteboard IWB files and converting them"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0-only"}
+dependencies = []
+
+[project.scripts]
+iwb2svg = "newline_iwb_converter.iwb2svg:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = []

@@ -1,6 +1,6 @@
 # Newline IWB Converter
 
-A converter utility for handling newline formats in IWB files. Extracts SVG pages from Newline whiteboard IWB files.
+A converter utility for extracting SVG pages from Newline whiteboard IWB files.
 
 ## Features
 

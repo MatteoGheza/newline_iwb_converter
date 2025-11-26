@@ -1,6 +1,6 @@
 # Newline IWB Converter
 
-![PyPI - Version](https://img.shields.io/pypi/v/newline-iwb-converter) ![GitHub License](https://img.shields.io/github/license/matteogheza/newline_iwb_converter)
+![GitHub License](https://img.shields.io/github/license/matteogheza/newline_iwb_converter)
 
 
 A converter utility for extracting SVG pages from Newline whiteboard IWB files, with optional PDF conversion.
@@ -194,12 +194,6 @@ uv run python scripts/build_exec.py iwb2pdf
 The executables will be created in the `dist/` folder:
 - `iwb2svg.exe` / `iwb2svg` (Linux/macOS)
 - `iwb2pdf.exe` / `iwb2pdf` (Linux/macOS)
-
-### Run Tests
-
-```bash
-uv run pytest
-```
 
 ### Project Structure
 

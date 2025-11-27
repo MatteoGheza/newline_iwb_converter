@@ -8,7 +8,15 @@
             "name": "iwb2svg",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/src/newline_iwb_converter/iwb2svg.py",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "iwb2pdf",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/newline_iwb_converter/iwb2pdf.py",
             "console": "integratedTerminal",
             "args": "${command:pickArgs}"
         }

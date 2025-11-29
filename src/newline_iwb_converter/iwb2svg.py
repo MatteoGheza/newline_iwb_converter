@@ -152,14 +152,33 @@ def convert_textarea_to_text(svg_root):
                     break
 
 
+def parse_transform_translate(transform_str):
+    """Extract translate(x, y) from a transform attribute string."""
+    if not transform_str:
+        return 0.0, 0.0
+    
+    # Look for translate(...) pattern
+    match = re.search(r'translate\s*\(\s*([+-]?\d+\.?\d*)\s*[,\s]\s*([+-]?\d+\.?\d*)\s*\)', transform_str)
+    if match:
+        try:
+            tx = float(match.group(1))
+            ty = float(match.group(2))
+            return tx, ty
+        except (ValueError, IndexError):
+            pass
+    
+    return 0.0, 0.0
+
+
 def fix_svg_size(svg_root, margin=100):
     """
     Fix SVG size if width or height are smaller than the actual content.
     Calculate bounding box of all elements and expand SVG if needed.
+    Takes into account transform attributes (especially translate).
     
     Args:
         svg_root: The SVG root element
-        margin: Safety margin to add around content (default: 10)
+        margin: Safety margin to add around content (default: 100)
     """
     try:
         # Get current SVG dimensions
@@ -183,11 +202,15 @@ def fix_svg_size(svg_root, margin=100):
                 continue
             local = tag.split("}")[-1]
             
+            # Get transform offset if present
+            transform = elem.get("transform", "")
+            tx, ty = parse_transform_translate(transform)
+            
             # For rect elements
             if local == "rect":
                 try:
-                    x = float(elem.get("x", 0))
-                    y = float(elem.get("y", 0))
+                    x = float(elem.get("x", 0)) + tx
+                    y = float(elem.get("y", 0)) + ty
                     w = float(elem.get("width", 0))
                     h = float(elem.get("height", 0))
                     max_x = max(max_x, x + w)
@@ -198,8 +221,8 @@ def fix_svg_size(svg_root, margin=100):
             # For circle elements
             elif local == "circle":
                 try:
-                    cx = float(elem.get("cx", 0))
-                    cy = float(elem.get("cy", 0))
+                    cx = float(elem.get("cx", 0)) + tx
+                    cy = float(elem.get("cy", 0)) + ty
                     r = float(elem.get("r", 0))
                     max_x = max(max_x, cx + r)
                     max_y = max(max_y, cy + r)
@@ -209,8 +232,8 @@ def fix_svg_size(svg_root, margin=100):
             # For ellipse elements
             elif local == "ellipse":
                 try:
-                    cx = float(elem.get("cx", 0))
-                    cy = float(elem.get("cy", 0))
+                    cx = float(elem.get("cx", 0)) + tx
+                    cy = float(elem.get("cy", 0)) + ty
                     rx = float(elem.get("rx", 0))
                     ry = float(elem.get("ry", 0))
                     max_x = max(max_x, cx + rx)
@@ -227,8 +250,8 @@ def fix_svg_size(svg_root, margin=100):
                         points = points_str.replace(",", " ").split()
                         for i in range(0, len(points), 2):
                             if i + 1 < len(points):
-                                x = float(points[i])
-                                y = float(points[i + 1])
+                                x = float(points[i]) + tx
+                                y = float(points[i + 1]) + ty
                                 max_x = max(max_x, x)
                                 max_y = max(max_y, y)
                 except (ValueError, TypeError, IndexError):
@@ -237,8 +260,8 @@ def fix_svg_size(svg_root, margin=100):
             # For image elements
             elif local == "image":
                 try:
-                    x = float(elem.get("x", 0))
-                    y = float(elem.get("y", 0))
+                    x = float(elem.get("x", 0)) + tx
+                    y = float(elem.get("y", 0)) + ty
                     w = float(elem.get("width", 0))
                     h = float(elem.get("height", 0))
                     max_x = max(max_x, x + w)
@@ -255,8 +278,8 @@ def fix_svg_size(svg_root, margin=100):
                         numbers = re.findall(r"-?\d+\.?\d*", d_str)
                         for i in range(0, len(numbers), 2):
                             if i + 1 < len(numbers):
-                                x = float(numbers[i])
-                                y = float(numbers[i + 1])
+                                x = float(numbers[i]) + tx
+                                y = float(numbers[i + 1]) + ty
                                 max_x = max(max_x, x)
                                 max_y = max(max_y, y)
                 except (ValueError, TypeError, IndexError):

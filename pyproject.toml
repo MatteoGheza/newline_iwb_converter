@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
     "reportlab>=4.0",
     "svglib>=1.4",
+    "PyPDF2>=3.0",
 ]
 
 [project.urls]

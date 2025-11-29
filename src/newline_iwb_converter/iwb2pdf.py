@@ -5,34 +5,39 @@
 import sys
 import argparse
 import tempfile
-from pathlib import Path
-
-from reportlab.pdfgen import canvas
-from reportlab.graphics import renderPDF
-from svglib.svglib import svg2rlg
 
 from newline_iwb_converter import iwb2svg, __version__
+from newline_iwb_converter.pdf_engines import InkscapeEngine, SvglibEngine
 
 
-def svg_to_pdf_page(svg_path):
+def get_pdf_engine(use_inkscape=None):
     """
-    Convert an SVG file to a ReportLab drawing.
-    
+    Get the appropriate PDF conversion engine.
+
     Args:
-        svg_path: Path to the SVG file
-        
+        use_inkscape: If True, use Inkscape. If False, use svglib.
+                      If None, auto-detect (prefer Inkscape if available).
+
     Returns:
-        ReportLab drawing object or None if conversion failed
+        An instance of the selected PDF engine.
     """
-    try:
-        drawing = svg2rlg(svg_path)
-        return drawing
-    except Exception as e:
-        print(f"Warning: Could not convert {svg_path} to drawing: {e}", file=sys.stderr)
-        return None
+    # Auto-detect Inkscape if not explicitly specified
+    if use_inkscape is None:
+        inkscape_engine = InkscapeEngine()
+        use_inkscape = inkscape_engine.is_available()
+
+    if use_inkscape:
+        inkscape_engine = InkscapeEngine()
+        if inkscape_engine.is_available():
+            print(f"Using Inkscape for SVG to PDF conversion: {inkscape_engine.find_inkscape()}")
+            return inkscape_engine
+        else:
+            print("Inkscape requested but not found, falling back to svglib", file=sys.stderr)
+
+    return SvglibEngine()
 
 
-def combine_svgs_to_pdf(svg_dir, output_pdf, uniform_size=False):
+def combine_svgs_to_pdf(svg_dir, output_pdf, uniform_size=False, use_inkscape=None):
     """
     Combine multiple SVG files from a directory into a single PDF.
     
@@ -41,90 +46,14 @@ def combine_svgs_to_pdf(svg_dir, output_pdf, uniform_size=False):
         output_pdf: Path to output PDF file
         uniform_size: If True, all pages have the size of the largest page.
                       If False, each page is sized independently (default).
+        use_inkscape: If True, use Inkscape for conversion. If False, use svglib.
+                      If None, auto-detect (use Inkscape if available).
     """
-    # Get all SVG files, sorted by name
-    svg_files = sorted(
-        Path(svg_dir).glob("page_*.svg"),
-        key=lambda x: int(x.stem.split("_")[1])
-    )
-    
-    if not svg_files:
-        print(f"No SVG files found in {svg_dir}", file=sys.stderr)
-        sys.exit(1)
-    
-    # If uniform size is requested, first pass to find max dimensions
-    max_width = 0
-    max_height = 0
-    drawings = []
-    
-    for svg_file in svg_files:
-        drawing = svg_to_pdf_page(str(svg_file))
-        if drawing is None:
-            print(f"Skipping {svg_file}", file=sys.stderr)
-            drawings.append(None)
-            continue
-        drawings.append(drawing)
-        if uniform_size:
-            max_width = max(max_width, drawing.width)
-            max_height = max(max_height, drawing.height)
-    
-    if uniform_size:
-        padding = 10
-        uniform_page_width = max_width + padding * 2
-        uniform_page_height = max_height + padding * 2
-    
-    # Create PDF
-    pdf_canvas = canvas.Canvas(output_pdf)
-    
-    for idx, (svg_file, drawing) in enumerate(zip(svg_files, drawings)):
-        if drawing is None:
-            continue
-        
-        # Get SVG dimensions
-        svg_width = drawing.width
-        svg_height = drawing.height
-        
-        if uniform_size:
-            page_width = uniform_page_width
-            page_height = uniform_page_height
-            padding = 10
-        else:
-            # Set page size to match SVG dimensions (with small padding)
-            padding = 10
-            page_width = svg_width + padding * 2
-            page_height = svg_height + padding * 2
-        
-        pdf_canvas.setPageSize((page_width, page_height))
-        
-        # Draw SVG on the page
-        if uniform_size:
-            # Center SVG on the page
-            x_offset = (page_width - svg_width) / 2
-            y_offset = (page_height - svg_height) / 2
-            pdf_canvas.saveState()
-            pdf_canvas.translate(x_offset, y_offset)
-        else:
-            # Just add padding
-            pdf_canvas.saveState()
-            pdf_canvas.translate(padding, padding)
-        
-        renderPDF.draw(drawing, pdf_canvas, 0, 0)
-        pdf_canvas.restoreState()
-        
-        # Add new page for next SVG (except for the last one)
-        if idx < len(drawings) - 1:
-            pdf_canvas.showPage()
-        
-        if uniform_size:
-            print(f"Added to PDF: {svg_file.name} (centered on {page_width}x{page_height})")
-        else:
-            print(f"Added to PDF: {svg_file.name} ({page_width}x{page_height})")
-    
-    pdf_canvas.save()
-    print(f"Saved PDF: {output_pdf}")
+    engine = get_pdf_engine(use_inkscape)
+    engine.combine_svgs_to_pdf(svg_dir, output_pdf, uniform_size=uniform_size)
 
 
-def extract_iwb_to_pdf(iwb_path, output_pdf, fix_fills=True, fix_size=True, delete_background=False, uniform_size=False):
+def extract_iwb_to_pdf(iwb_path, output_pdf, fix_fills=True, fix_size=True, delete_background=False, uniform_size=False, use_inkscape=None):
     """
     Extract an IWB file and convert it to PDF.
     
@@ -135,6 +64,8 @@ def extract_iwb_to_pdf(iwb_path, output_pdf, fix_fills=True, fix_size=True, dele
         fix_size: Whether to fix SVG size if content extends beyond dimensions
         delete_background: Whether to remove background image elements
         uniform_size: If True, all pages have the size of the largest page
+        use_inkscape: If True, use Inkscape for conversion. If False, use svglib.
+                      If None, auto-detect (use Inkscape if available).
     """
     # Create temporary directory for SVG extraction
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -153,7 +84,7 @@ def extract_iwb_to_pdf(iwb_path, output_pdf, fix_fills=True, fix_size=True, dele
         print(f"Converting SVGs to PDF: {output_pdf}")
         
         # Combine SVGs to PDF
-        combine_svgs_to_pdf(temp_dir, output_pdf, uniform_size=uniform_size)
+        combine_svgs_to_pdf(temp_dir, output_pdf, uniform_size=uniform_size, use_inkscape=use_inkscape)
 
 
 def main():
@@ -213,7 +144,21 @@ def main():
         help="Each page size is independent based on its content (default)",
     )
 
-    parser.set_defaults(fix_fills=True, fix_size=True, delete_background=False, uniform_size=False)
+    engine_group = parser.add_mutually_exclusive_group()
+    engine_group.add_argument(
+        "--use-inkscape",
+        dest="use_inkscape",
+        action="store_true",
+        help="Use Inkscape for SVG to PDF conversion (if available)",
+    )
+    engine_group.add_argument(
+        "--use-svglib",
+        dest="use_inkscape",
+        action="store_false",
+        help="Use svglib for SVG to PDF conversion (default if Inkscape not available)",
+    )
+
+    parser.set_defaults(fix_fills=True, fix_size=True, delete_background=False, uniform_size=False, use_inkscape=None)
     args = parser.parse_args()
 
     extract_iwb_to_pdf(
@@ -223,6 +168,7 @@ def main():
         fix_size=args.fix_size,
         delete_background=args.delete_background,
         uniform_size=args.uniform_size,
+        use_inkscape=args.use_inkscape,
     )
 
 

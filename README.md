@@ -9,6 +9,9 @@ A converter utility for extracting SVG pages from Newline whiteboard IWB files, 
 
 - **Extract SVG pages** from Newline IWB (`.iwb`) files
 - **Convert IWB to PDF** - create multi-page PDFs with independent or uniform page sizing
+- **Dual PDF conversion engines**:
+  - **Inkscape** (preferred if available) - better SVG compatibility and rendering
+  - **svglib** (fallback) - pure Python, no external dependencies
 - **Flexible image handling**:
   - Embed images as base64 data URIs (default)
   - Copy images directory alongside SVGs
@@ -22,6 +25,9 @@ A converter utility for extracting SVG pages from Newline whiteboard IWB files, 
 
 - Python 3.10 or later
 - **Ubuntu**: Install Cairo with `sudo apt install -y libcairo2-dev pkg-config python3-dev`
+- **Optional**: [Inkscape](https://inkscape.org/) for improved SVG to PDF conversion
+  - If installed, `iwb2pdf` will automatically use it for better rendering
+  - Without it, falls back to svglib
 
 ### Installation
 
@@ -109,7 +115,7 @@ This will extract all SVG pages and convert them to a multi-page PDF with indepe
 #### Command Line Options
 
 ```
-usage: iwb2pdf [-h] [-o OUTPUT] [--fix-fills | --no-fix-fills] [--fix-size | --no-fix-size] [--delete-background] [--uniform-size | --independent-size] iwb_file
+usage: iwb2pdf [-h] [-o OUTPUT] [--fix-fills | --no-fix-fills] [--fix-size | --no-fix-size] [--delete-background] [--uniform-size | --independent-size] [--use-inkscape | --use-svglib] iwb_file
 
 Convert IWB files to PDF format.
 
@@ -127,13 +133,25 @@ options:
   --delete-background   Remove background image elements
   --uniform-size        Make all pages the same size (size of the largest page)
   --independent-size    Each page size is independent based on its content (default)
+  --use-inkscape        Use Inkscape for SVG to PDF conversion (if available)
+  --use-svglib          Use svglib for SVG to PDF conversion (default if Inkscape not available)
 ```
 
 #### Examples
 
-**Create PDF with independent page sizing (default):**
+**Create PDF with independent page sizing (auto-detects Inkscape, falls back to svglib):**
 ```bash
 iwb2pdf input.iwb -o output.pdf
+```
+
+**Force Inkscape conversion (if available):**
+```bash
+iwb2pdf input.iwb -o output.pdf --use-inkscape
+```
+
+**Force svglib conversion:**
+```bash
+iwb2pdf input.iwb -o output.pdf --use-svglib
 ```
 
 **Make all pages the same size:**
@@ -223,15 +241,36 @@ newline_iwb_converter/
 
 ### iwb2pdf
 1. **Extract SVGs**: Uses `iwb2svg` to extract all SVG pages from the IWB file
-2. **Convert SVGs**: Converts each SVG to a ReportLab drawing
-3. **Create PDF**: Combines all drawings into a multi-page PDF
-4. **Page Sizing**: Each page is sized independently (or uniformly) based on content
+2. **Select Conversion Engine**:
+   - Checks if Inkscape is available on the system
+   - Uses Inkscape if found (better SVG rendering)
+   - Falls back to svglib if Inkscape not available
+3. **Convert SVGs to PDF**:
+   - **Inkscape**: Converts each SVG directly to PDF using Inkscape CLI, then merges PDFs
+   - **svglib**: Converts each SVG to a ReportLab drawing and renders to PDF
+4. **Create Multi-page PDF**: Combines all page PDFs into a single output file
+5. **Page Sizing**: Each page is sized independently (or uniformly) based on content
+
+#### PDF Conversion Engine Selection
+
+By default, `iwb2pdf` automatically detects and uses the best available engine:
+
+| Scenario | Engine Used | Result |
+|----------|------------|--------|
+| Inkscape installed | Inkscape | Better SVG compatibility, accurate rendering |
+| Inkscape not found | svglib | Pure Python, no external dependencies |
+| `--use-inkscape` flag | Inkscape (with fallback to svglib) | Forces Inkscape, falls back if unavailable |
+| `--use-svglib` flag | svglib | Always uses svglib |
 
 ## Requirements
 
 - Python 3.10+
 - `iwb2svg`: No external dependencies (uses only Python standard library)
-- `iwb2pdf`: Requires `reportlab` and `svglib` (installed via `uv sync`)
+- `iwb2pdf`: Requires `reportlab`, `svglib`, and `PyPDF2` (installed via `uv sync`)
+- `iwb2pdf` (Inkscape support): Optional [Inkscape](https://inkscape.org/) for improved SVG rendering
+  - **Windows**: Download from [https://inkscape.org/](https://inkscape.org/)
+  - **macOS**: `brew install inkscape`
+  - **Linux**: `apt install inkscape` (Debian/Ubuntu) or `dnf install inkscape` (Fedora)
 
 ## License
 

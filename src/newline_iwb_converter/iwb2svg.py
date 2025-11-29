@@ -46,6 +46,9 @@ def remove_fills(svg_root):
             continue
 
         # If explicit presentation attribute exists, set it to none
+        # Skip elements with id starting with "backgroundColor"
+        if elem_id.startswith("backgroundColor"):
+            continue
         if "fill" in elem.attrib:
             elem.set("fill", "none")
 
